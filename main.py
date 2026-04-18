@@ -26,12 +26,20 @@ print("📊 Training ML model on sample stock...\n")
 
 df_sample = fetch_market_data("INFY.NS")
 
+# if df_sample is None:
+#     raise Exception("❌ Failed to fetch training data")
 if df_sample is None:
-    raise Exception("❌ Failed to fetch training data")
+    print("⚠️ Sample data failed, trying fallback...")
+
+    df_sample = fetch_market_data("RELIANCE.NS")
+
+    if df_sample is None:
+        raise Exception("❌ No training data available")
 
 df_sample = compute_indicators(df_sample)
 
-model = train_model(df_sample)
+# ✅ IMPORTANT CHANGE
+model, features = train_model(df_sample)
 
 print("\n✅ Model training completed\n")
 
@@ -52,57 +60,63 @@ for stock in NIFTY50:
 
     df = compute_indicators(df)
 
-    # ==============================
-    # 🤖 ML Prediction
-    # ==============================
-    ml_signal = predict(model, df)
+    try:
+        # ==============================
+        # 🤖 ML Prediction
+        # ==============================
+        ml_signal = predict(model, df, features)
 
-    # ==============================
-    # 📰 News + Sentiment
-    # ==============================
-    headlines = fetch_news(stock)
-    sentiment = analyze_sentiment(headlines)
+        # ==============================
+        # 📰 News + Sentiment
+        # ==============================
+        headlines = fetch_news(stock)
+        sentiment = analyze_sentiment(headlines)
 
-    # ==============================
-    # 🧠 Agent Decision (LLM Logic)
-    # ==============================
-    state = {
-        "stock": stock,
-        "ml_signal": ml_signal,
-        "sentiment": sentiment
-    }
+        # ==============================
+        # 🧠 Agent Decision
+        # ==============================
+        state = {
+            "stock": stock,
+            "ml_signal": ml_signal,
+            "sentiment": sentiment
+        }
 
-    final = run_agent(state)
+        final = run_agent(state)
 
-    # ==============================
-    # 💰 Price + Risk
-    # ==============================
-    price = float(df["Close"].iloc[-1])
+        # ==============================
+        # 💰 Price + Risk
+        # ==============================
+        price = float(df["Close"].iloc[-1])
 
-    stoploss = round(price * 0.98, 2)
-    target = round(price * 1.03, 2)
+        stoploss = round(price * 0.98, 2)
+        target = round(price * 1.03, 2)
 
-    # ==============================
-    # 📊 Store Results
-    # ==============================
-    results.append({
-        "stock": stock,
-        "price": price,
-        "ml_signal": ml_signal,
-        "sentiment": sentiment,
-        "final_decision": final["decision"],
-        "stoploss": stoploss,
-        "target": target
-    })
+        # ==============================
+        # 📊 Store Results
+        # ==============================
+        results.append({
+            "stock": stock,
+            "price": price,
+            "ml_signal": ml_signal,
+            "sentiment": sentiment,
+            "final_decision": final["decision"],
+            "stoploss": stoploss,
+            "target": target
+        })
 
-    # ==============================
-    # 🖥️ Print Output
-    # ==============================
-    print(f"💰 Price: {price}")
-    print(f"🤖 ML Signal: {ml_signal}")
-    print(f"📰 Sentiment: {sentiment}")
-    print(f"🧠 Final Decision: {final['decision']}")
-    print(f"🛑 Stoploss: {stoploss} | 🎯 Target: {target}")
+        # ==============================
+        # 🖥️ Print Output
+        # ==============================
+        print(f"💰 Price: {price}")
+        print(f"🤖 ML Signal: {ml_signal}")
+        print(f"📰 Sentiment: {sentiment}")
+        print(f"🧠 Final Decision: {final['decision']}")
+        print(f"🛑 Stoploss: {stoploss} | 🎯 Target: {target}")
+
+    except Exception as e:
+        print(f"⚠️ Error processing {stock}: {e}")
+        continue
+
 
 # ==============================
 # 📈 FINAL SUMMARY
